@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Sail Tracker</string>
+    <string name="google_maps_key">AIzaSyAp3mFxqDG0CyLjgj387IDjm-BrHCvwfsc</string>
+    <string-array name="filter_options">
+        <item>Date</item>
+        <item>Running Time</item>
+        <item>Distance</item>
+        <item>Average Speed</item>
+        <item>Calories Burned</item>
+    </string-array>
+    <string-array name="session_options">
+        <item>Normal Tracking</item>
+        <item>Tacking on the whistle</item>
+        <item>Time to line</item>
+        <item>Riverbank</item>
+    </string-array>
+</resources>

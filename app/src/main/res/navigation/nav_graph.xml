@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/setupFragment">
+
+    <action android:id="@+id/action_global_tracking_fragment"
+        app:destination="@id/trackingFragment"
+        app:launchSingleTop="true"/>
+
+    <fragment
+        android:id="@+id/sessionFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.SessionFragment"
+        android:label="SessionFragment" >
+        <action
+            android:id="@+id/action_sessionFragment_to_trackingFragment"
+            app:destination="@id/trackingFragment" />
+        <action
+            android:id="@+id/action_sessionFragment_to_resultsTackingOnTheWhistleFragment"
+            app:destination="@id/resultsTackingOnTheWhistleFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/setupFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.SetupFragment"
+        android:label="SetupFragment" >
+        <action
+            android:id="@+id/action_setupFragment_to_sessionFragment"
+            app:destination="@id/sessionFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.SettingsFragment"
+        android:label="SettingsFragment" />
+    <fragment
+        android:id="@+id/statisticsFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.StatisticsFragment"
+        android:label="StatisticsFragment" />
+    <fragment
+        android:id="@+id/trackingFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.TrackingFragment"
+        android:label="TrackingFragment" >
+        <action
+            android:id="@+id/action_trackingFragment_to_sessionFragment"
+            app:destination="@id/sessionFragment" />
+        <action
+            android:id="@+id/action_trackingFragment_to_resultsTackingOnTheWhistleFragment"
+            app:destination="@id/resultsTackingOnTheWhistleFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/resultsTackingOnTheWhistleFragment"
+        android:name="diss.testing.runningapp2.ui.fragments.ResultsTackingOnTheWhistleFragment"
+        android:label="ResultsTackingOnTheWhistleFragment" >
+        <action
+            android:id="@+id/action_resultsTackingOnTheWhistleFragment_to_sessionFragment"
+            app:destination="@id/sessionFragment" />
+    </fragment>
+</navigation>
