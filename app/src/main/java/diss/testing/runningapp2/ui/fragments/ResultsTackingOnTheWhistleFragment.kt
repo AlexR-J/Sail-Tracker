@@ -27,6 +27,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import dagger.hilt.android.AndroidEntryPoint
 import diss.testing.runningapp2.R
+import diss.testing.runningapp2.R.color.graphColor
 import diss.testing.runningapp2.adapters.SessionAdapter
 import diss.testing.runningapp2.databinding.FragmentResultsTackingOnTheWhistleBinding
 import diss.testing.runningapp2.db.SessionClass
@@ -134,11 +135,12 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
         binding.lineChart.legend.isEnabled = false
         binding.lineChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
-            setDrawLabels(true)
+            setDrawLabels(false)
             axisLineColor = Color.WHITE
             textColor = Color.WHITE
             setDrawGridLines(false)
             setDrawLabels(false)
+            setDrawAxisLine(false)
         }
         binding.lineChart.axisLeft.apply {
             axisLineColor = Color.WHITE

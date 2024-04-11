@@ -37,6 +37,7 @@ import diss.testing.runningapp2.other.Constants.ACTION_SET_WINDWARD
 import diss.testing.runningapp2.other.Constants.ACTION_START_OR_RESUME_SERVICE
 import diss.testing.runningapp2.other.Constants.ACTION_STOP_SERVICE
 import diss.testing.runningapp2.other.Constants.KEY_CURRENT_SESSION_ID
+import diss.testing.runningapp2.other.Constants.KEY_WEIGHT
 import diss.testing.runningapp2.other.Constants.MAP_ZOOM
 import diss.testing.runningapp2.other.Constants.MET
 import diss.testing.runningapp2.other.Constants.POLYLINE_ACCENT_COLOR
@@ -88,9 +89,6 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
     @Inject
     lateinit var sharedPreferences: SharedPreferences
 
-    @set:Inject
-    var weight = 80F
-
     @SuppressLint("CommitPrefEdits")
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -122,6 +120,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             toggleRun()
             binding.spinner.visibility = View.GONE
             binding.spinner.visibility = View.INVISIBLE
+            binding.tvFilterBy.visibility = View.INVISIBLE
         }
         binding.btnToggleRun.isClickable = false
         binding.btnToggleRun.setTextColor(Color.GRAY)
@@ -431,7 +430,8 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             }
             val avgSpeed = round((distanceInMeters / 1000f) / (timeInMillis / 1000f / 60 / 60) * 10) / 10f
             val dateTimestamp = Calendar.getInstance().timeInMillis
-            val caloriesBurned = (MET  * weight * 3.5).toInt()
+            val weight = sharedPreferences.getFloat(KEY_WEIGHT, 80F)
+            val caloriesBurned = (((MET  * weight * 3.5)/200) * (timeInSeconds/60)).toInt()
             val pointsObject = PolylinesList(points)
             val speedList = SpeedsList(speedPoints)
             val redPointsList = RedPointsList(redPoints)
