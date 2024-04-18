@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.location.Location
 import android.os.Build
+import com.google.android.gms.maps.model.LatLng
 import diss.testing.runningapp2.services.Polyline
 import pub.devrel.easypermissions.EasyPermissions
 import timber.log.Timber
@@ -68,5 +69,15 @@ object TrackingUtility {
                 "${if(seconds < 10) "0" else ""}$seconds:" +
                 "${if(milliseconds < 10) "0" else ""}$milliseconds"
         return formattedString
+    }
+
+    fun getSecondsToMillis(seconds: Long): Long {
+        return TimeUnit.SECONDS.toMillis(seconds)
+    }
+
+    fun getDistanceBetween(point1: LatLng, point2: LatLng): Float {
+        val latLngArray = FloatArray(1)
+        Location.distanceBetween(point1.latitude, point1.longitude, point2.latitude, point2.longitude, latLngArray)
+        return latLngArray[0]
     }
 }

@@ -82,6 +82,7 @@ dependencies {
     // Google Maps Location Services
     implementation 'com.google.android.gms:play-services-location:21.2.0'
     implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.maps.android:android-maps-utils:0.6.2'
 
 // Dagger Core
     implementation 'com.google.dagger:dagger:2.51.1'

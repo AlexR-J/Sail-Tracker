@@ -20,13 +20,18 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
+import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.tasks.CancellationToken
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.android.gms.tasks.OnTokenCanceledListener
 import dagger.hilt.android.AndroidEntryPoint
 import diss.testing.runningapp2.R
 import diss.testing.runningapp2.other.Constants.ACTION_PAUSE_SERVICE
@@ -100,6 +105,8 @@ class TrackingService : LifecycleService() {
         pointTimeStamps.postValue(mutableListOf())
         timeSailedInSeconds.postValue(0L)
         timeSailedInMillis.postValue(0L)
+        windwardLocation = MutableLiveData<LatLng?>()
+        leewardLocation = MutableLiveData<LatLng?>()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -333,8 +340,14 @@ class TrackingService : LifecycleService() {
 
     @SuppressLint("MissingPermission")
     private fun setMarkLocation(markNumber : Int) {
-        if(TrackingUtility.hasLocationPermissions(this)) {
-            fusedLocationProviderClient.lastLocation
+            val req = CurrentLocationRequest.Builder()
+                .setPriority(PRIORITY_HIGH_ACCURACY)
+                .build()
+            fusedLocationProviderClient.getCurrentLocation(req,  object : CancellationToken() {
+                override fun onCanceledRequested(p0: OnTokenCanceledListener) = CancellationTokenSource().token
+
+                override fun isCancellationRequested() = false
+            })
                 .addOnSuccessListener { location : Location? ->
                     val position = location?.let { LatLng(it.latitude, location.longitude) }
                     if(markNumber == 1) {
@@ -354,9 +367,6 @@ class TrackingService : LifecycleService() {
                     }
                 }
         }
-
-
-    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(notificationManager: NotificationManager) {
