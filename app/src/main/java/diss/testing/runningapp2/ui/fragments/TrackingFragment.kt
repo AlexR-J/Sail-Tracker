@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.location.GnssAntennaInfo.SphericalCorrections
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -26,6 +27,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.google.maps.android.SphericalUtil
 import dagger.hilt.android.AndroidEntryPoint
 import diss.testing.runningapp2.R
 import diss.testing.runningapp2.databinding.FragmentTrackingBinding
@@ -85,6 +87,9 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
     private var redPoints = mutableListOf<LatLng>()
     private var markerTimeStamps = mutableListOf<Long>()
     private var isFirstStart = true
+    private var countdownValue = 0L
+    private var startTimer = countdownValue
+    private var isCountdown = false
 
     @Inject
     lateinit var sharedPreferences: SharedPreferences
@@ -106,24 +111,40 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                 zoomWholeTrack(map)
                 endAndSaveSession(map)
             }
-            binding.mark1Btn.setOnClickListener{
-                sendCommandToService(ACTION_SET_LEEWARD)
-                binding.leewardCheck.visibility = View.VISIBLE
+
+            binding.btnToggleRun.setOnClickListener{
+                toggleRun()
+                TrackingService.windwardLocation.value?.let { it1 -> markerLocations.add(it1) }
+                TrackingService.leewardLocation.value?.let { it1 -> markerLocations.add(it1) }
+                binding.spinner.visibility = View.GONE
+                binding.spinner.visibility = View.INVISIBLE
+                binding.tvFilterBy.visibility = View.INVISIBLE
+                binding.mark2Btn.isClickable = false
+                binding.mark1Btn.isClickable = false
+                addAllPointsAndLines(map)
             }
-            binding.mark2Btn.setOnClickListener{
-                sendCommandToService(ACTION_SET_WINDWARD)
-                binding.windwardCheck.visibility = View.VISIBLE
-            }
+            binding.btnToggleRun.isClickable = false
         }
 
-        binding.btnToggleRun.setOnClickListener{
-            toggleRun()
-            binding.spinner.visibility = View.GONE
-            binding.spinner.visibility = View.INVISIBLE
-            binding.tvFilterBy.visibility = View.INVISIBLE
+
+
+        binding.timerSelectionSpn.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                adapter: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                when(position) {
+                    0 -> countdownValue = 180000L
+                    1 -> countdownValue = 300000L
+                    2 -> countdownValue = 600000L
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                TODO("Not yet implemented")
+            }
         }
-        binding.btnToggleRun.isClickable = false
-        binding.btnToggleRun.setTextColor(Color.GRAY)
 
         binding.spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -137,24 +158,43 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                         sessionType = SESSION_TYPE_DEFAULT
                         binding.mark1Btn.visibility = View.INVISIBLE
                         binding.mark2Btn.visibility = View.INVISIBLE
+                        isCountdown = false
+                        startTimer = 0L
                         sendCommandToService(SESSION_TYPE_DEFAULT)
                     }
                     1 -> {
                         sessionType = SESSION_TYPE_TACK_ON_WHISTLE
                         binding.mark1Btn.visibility = View.INVISIBLE
                         binding.mark2Btn.visibility = View.INVISIBLE
+                        isCountdown = false
+                        startTimer = 0L
                         sendCommandToService(SESSION_TYPE_TACK_ON_WHISTLE)
                     }
                     2 -> {
                         sessionType = SESSION_TYPE_TIME_TO_LINE
                         binding.mark1Btn.visibility = View.VISIBLE
-                        binding.mark2Btn.visibility = View.VISIBLE
+                        binding.timerSelectionSpn.visibility = View.VISIBLE
+                        binding.timerSelectionLabel.visibility = View.VISIBLE
+                        isCountdown = true
+                        startTimer = 180000L
                         sendCommandToService(SESSION_TYPE_TIME_TO_LINE)
+                        binding.mark1Btn.setOnClickListener{
+                            sendCommandToService(ACTION_SET_LEEWARD)
+                            binding.mark2Btn.isClickable = true
+                            binding.mark2Btn.visibility = View.VISIBLE
+                            binding.leewardCheck.visibility = View.VISIBLE
+                        }
+                        binding.mark2Btn.setOnClickListener{
+                            sendCommandToService(ACTION_SET_WINDWARD)
+                            binding.windwardCheck.visibility = View.VISIBLE
+                        }
                     }
                     3 -> {
                         sessionType = SESSION_TYPE_RIVERBANK
                         binding.mark1Btn.visibility = View.VISIBLE
                         binding.mark2Btn.visibility = View.VISIBLE
+                        isCountdown = false
+                        startTimer = 0L
                         sendCommandToService(SESSION_TYPE_RIVERBANK)
                     }
                 }
@@ -187,16 +227,26 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             points = it
             addLatestPolyline(map)
             moveCamera(map)
+            if(sessionType == SESSION_TYPE_RIVERBANK) {
+                //Logic for river bank goes here.
+            }
         })
         TrackingService.speedPoints.observe(viewLifecycleOwner, Observer {
             speedPoints = it
             updateSpeedo(map)
         })
 
+
         TrackingService.timeSailedInMillis.observe(viewLifecycleOwner, Observer {
             timeInMillis = it
-            val formattedTime = TrackingUtility.getFormattedTime(timeInMillis, true)
-            binding.tvTimer.text = formattedTime
+            if(isCountdown) {
+                val formattedTime = TrackingUtility.getFormattedTime(countdownValue, true)
+                binding.tvTimer.text = formattedTime
+            } else {
+                val formattedTime = TrackingUtility.getFormattedTime(timeInMillis - startTimer, true)
+                binding.tvTimer.text = formattedTime
+            }
+
         })
         TrackingService.bothMarksSet.observe(viewLifecycleOwner, Observer {
             if(it == true) {
@@ -212,15 +262,16 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
         val mediaPlayer = MediaPlayer.create(requireContext(), R.raw.whistle_sound)
         var nextRandomTack = (0..30).random().toInt() + 20
         var redLineCounter = 0
+        var prestart = true
 
         TrackingService.timeSailedInSeconds.observe(viewLifecycleOwner, Observer {
             timeInSeconds = it
+
             when(sessionType) {
                 SESSION_TYPE_TACK_ON_WHISTLE ->
                     if(timeInSeconds >= nextRandomTack) {
                         mediaPlayer.start()
                         nextRandomTack = (timeInSeconds + ((0..30).random()) + 15).toInt()
-                        Timber.d("Next tack at: ${nextRandomTack}s")
                         markerLocations.add(points.last().last())
                         markerTimeStamps.add(timeInMillis)
                         val markerOptions = MarkerOptions()
@@ -232,6 +283,29 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                         redPoints.add(points.last().last())
                         redLineCounter -= 1
                     }
+                SESSION_TYPE_TIME_TO_LINE -> {
+                    if(prestart) {
+                        if((countdownValue % 60000).toInt() == 0) {
+                            mediaPlayer.start()
+                        }
+                        if(points.last().isNotEmpty()) {
+                            redPoints.add(points.last().last())
+                        }
+                    }
+                    if(TrackingUtility.getSecondsToMillis(timeInSeconds) <= startTimer) {
+                        isCountdown = true
+                        countdownValue -= 1000
+                    } else {
+                        if(prestart){
+                            prestart  = false
+                            markerLocations.add(points.last().last())
+                            isCountdown = false
+                        } else {
+                            isCountdown = false
+                        }
+                    }
+                }
+
             }
 
 
@@ -283,8 +357,6 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             val secondLastLatLng = points.last()[points.last().size -2]
             val lastLatLng = points.last().last()
             val polylineOptions = PolylineOptions()
-            Timber.d("$redPoints")
-            Timber.d("$lastLatLng")
             if(secondLastLatLng in redPoints) {
                 polylineOptions
                     .color(POLYLINE_ACCENT_COLOR)
@@ -348,7 +420,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
         when(sessionType) {
             SESSION_TYPE_DEFAULT  -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
             SESSION_TYPE_TACK_ON_WHISTLE -> findNavController().navigate(R.id.action_trackingFragment_to_resultsTackingOnTheWhistleFragment)
-            SESSION_TYPE_TIME_TO_LINE  -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
+            SESSION_TYPE_TIME_TO_LINE  -> findNavController().navigate(R.id.action_trackingFragment_to_resultsTackingOnTheWhistleFragment)
             SESSION_TYPE_RIVERBANK  -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
             SESSION_TYPE_CANCELED -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
 
@@ -421,7 +493,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             map?.addMarker(markerOptions)
         }
     }
-
+    
     private fun endAndSaveSession(map: GoogleMap) {
         map?.snapshot { bmp ->
             var distanceInMeters = 0
@@ -441,6 +513,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             var currentSessionId = sharedPreferences.getInt(KEY_CURRENT_SESSION_ID, 0)
             Timber.d("adding run with id $currentSessionId")
             ResultsTackingOnTheWhistleFragment.searchId.postValue(dateTimestamp)
+            ResultsTackingOnTheWhistleFragment.sessionType.postValue(sessionType)
             val run = SessionClass(bmp, dateTimestamp, avgSpeed, distanceInMeters, timeInMillis, caloriesBurned, pointsObject, speedList, redPointsList, markersList, markerTimeStampList, pointTimeStampList, currentSessionId)
             viewModel.insertSession(run)
             Snackbar.make(

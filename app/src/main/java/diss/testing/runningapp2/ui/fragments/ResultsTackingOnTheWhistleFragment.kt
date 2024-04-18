@@ -1,5 +1,6 @@
 package diss.testing.runningapp2.ui.fragments
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.Color.LTGRAY
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
+import androidx.navigation.fragment.findNavController
 import com.github.mikephil.charting.animation.Easing
 import com.github.mikephil.charting.components.LimitLine
 import com.github.mikephil.charting.components.XAxis
@@ -32,6 +34,7 @@ import diss.testing.runningapp2.adapters.SessionAdapter
 import diss.testing.runningapp2.databinding.FragmentResultsTackingOnTheWhistleBinding
 import diss.testing.runningapp2.db.SessionClass
 import diss.testing.runningapp2.other.Constants
+import diss.testing.runningapp2.other.Constants.SESSION_TYPE_TIME_TO_LINE
 import diss.testing.runningapp2.other.TrackingUtility
 import diss.testing.runningapp2.ui.viewmodels.ResultsViewModel
 import timber.log.Timber
@@ -49,6 +52,7 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
     companion object {
         var searchId = MutableLiveData<Long>()
         var viewSession = MutableLiveData<SessionClass>()
+        var sessionType = MutableLiveData<String>()
     }
 
     override fun onCreateView(
@@ -73,6 +77,9 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
         mMapFragment?.getMapAsync{map ->
             session?.let { drawMap(map, it) }
         }
+        binding.backButton.setOnClickListener{
+            findNavController().navigate(R.id.action_resultsTackingOnTheWhistleFragment_to_sessionFragment)
+        }
 
 
 
@@ -82,6 +89,7 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
         return view
     }
 
+    @SuppressLint("SetTextI18n")
     private fun drawMap(map: GoogleMap, session: SessionClass) {
         val points = session.points.polylines
         val redPoints = session.redPoints.redPointsList
@@ -129,6 +137,12 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
                 (binding.mapView.height * 0.05f).toInt()
             )
         )
+        when(sessionType.value) {
+            SESSION_TYPE_TIME_TO_LINE -> {
+                binding.caloriesBurnedLabel.text = "Distance from mark at go:"
+                binding.caloriesBurned.text = TrackingUtility.getDistanceBetween(markerLocations[0], markerLocations[2]).toString()
+            }
+        }
     }
 
     private fun drawGraph(session: SessionClass) {
