@@ -117,6 +117,17 @@
             app:layout_constraintStart_toEndOf="@+id/timerSelectionLabel"
             app:layout_constraintTop_toBottomOf="@+id/mark_2_btn" />
 
+        <Spinner
+            android:id="@+id/riverbankSpn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/riverbank_options"
+            android:padding="5dp"
+            android:visibility="invisible"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/timerSelectionLabel"
+            app:layout_constraintTop_toBottomOf="@+id/mark_2_btn" />
+
         <TextView
             android:id="@+id/timerSelectionLabel"
             android:layout_width="wrap_content"

@@ -25,7 +25,7 @@ object Constants {
     const val POLYLINE_COLOR = Color.BLUE
     const val POLYLINE_ACCENT_COLOR = Color.RED
     const val POLYLINE_WIDTH = 12F
-    const val MAP_ZOOM = 15F
+    const val MAP_ZOOM = 23F
     const val MET = 3F
     const val TIMER_UPDATE_INTERVAL = 50L
     const val SHARAED_PREFFERENCES_NAME = "shared preference"

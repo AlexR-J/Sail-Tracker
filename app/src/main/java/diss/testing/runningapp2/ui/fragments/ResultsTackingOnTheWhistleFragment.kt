@@ -34,6 +34,7 @@ import diss.testing.runningapp2.adapters.SessionAdapter
 import diss.testing.runningapp2.databinding.FragmentResultsTackingOnTheWhistleBinding
 import diss.testing.runningapp2.db.SessionClass
 import diss.testing.runningapp2.other.Constants
+import diss.testing.runningapp2.other.Constants.SESSION_TYPE_RIVERBANK
 import diss.testing.runningapp2.other.Constants.SESSION_TYPE_TIME_TO_LINE
 import diss.testing.runningapp2.other.TrackingUtility
 import diss.testing.runningapp2.ui.viewmodels.ResultsViewModel
@@ -141,6 +142,10 @@ class ResultsTackingOnTheWhistleFragment: Fragment(R.layout.fragment_results_tac
             SESSION_TYPE_TIME_TO_LINE -> {
                 binding.caloriesBurnedLabel.text = "Distance from mark at go:"
                 binding.caloriesBurned.text = TrackingUtility.getDistanceBetween(markerLocations[0], markerLocations[2]).toString()
+            }
+            SESSION_TYPE_RIVERBANK -> {
+                binding.avgSpeedLabel.text = "Average VMG"
+                binding.graphLabel.text = "VMG Graph"
             }
         }
     }
