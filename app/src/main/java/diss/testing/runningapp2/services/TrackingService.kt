@@ -95,6 +95,7 @@ class TrackingService : LifecycleService() {
         var leewardLocation = MutableLiveData<LatLng?>()
         var bothMarksSet = MutableLiveData<Boolean>()
         var pointTimeStamps = MutableLiveData<MutableList<Long>>()
+        var previousPoint = MutableLiveData<LatLng>()
     }
 
     private fun postInitialValues() {
@@ -107,6 +108,7 @@ class TrackingService : LifecycleService() {
         timeSailedInMillis.postValue(0L)
         windwardLocation = MutableLiveData<LatLng?>()
         leewardLocation = MutableLiveData<LatLng?>()
+        previousPoint = MutableLiveData<LatLng>()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

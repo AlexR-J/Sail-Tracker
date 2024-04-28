@@ -65,6 +65,7 @@ import diss.testing.runningapp2.ui.viewmodels.MainViewModel
 import timber.log.Timber
 import java.util.Calendar
 import javax.inject.Inject
+import kotlin.math.cos
 import kotlin.math.round
 
 @AndroidEntryPoint
@@ -79,6 +80,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
     private var isTracking = false
     private var points = mutableListOf<Polyline>()
     private var speedPoints = mutableListOf<ListOfSpeeds>()
+    private var hiddenSpeedPoints = mutableListOf<ListOfSpeeds>()
     private var timeInMillis = 0L
     private var menu: Menu? = null
     private var sessionType = SESSION_TYPE_DEFAULT
@@ -90,16 +92,20 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
     private var countdownValue = 0L
     private var startTimer = countdownValue
     private var isCountdown = false
+    private var riverbankSize = 20L
+    private var currentVMG = 0.0
+    private var vmgList = mutableListOf<ListOfSpeeds>()
 
     @Inject
     lateinit var sharedPreferences: SharedPreferences
 
     @SuppressLint("CommitPrefEdits")
-    override fun onCreateView(
+    override fun onCreateView (
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        vmgList.add(mutableListOf())
         _binding = FragmentTrackingBinding.inflate(inflater, container, false)
         val view = binding.root
         setHasOptionsMenu(true)
@@ -121,6 +127,9 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                 binding.tvFilterBy.visibility = View.INVISIBLE
                 binding.mark2Btn.isClickable = false
                 binding.mark1Btn.isClickable = false
+                if(sessionType == SESSION_TYPE_RIVERBANK) {
+                    setRiverbank(markerLocations[0], markerLocations[1], map)
+                }
                 addAllPointsAndLines(map)
             }
             binding.btnToggleRun.isClickable = false
@@ -146,7 +155,28 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             }
         }
 
+        binding.riverbankSpn.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                adapter: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long
+            ) {
+                when(position) {
+                    0 -> riverbankSize = 20L
+                    1 -> riverbankSize = 30L  
+                    2 -> riverbankSize = 40L
+                    3 -> riverbankSize = 50L
+                    4 -> riverbankSize = 100L
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                TODO("Not yet implemented")
+            }
+        }
+
         binding.spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            @SuppressLint("SetTextI18n")
             override fun onItemSelected(
                 adapter: AdapterView<*>?,
                 view: View?,
@@ -192,10 +222,22 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                     3 -> {
                         sessionType = SESSION_TYPE_RIVERBANK
                         binding.mark1Btn.visibility = View.VISIBLE
-                        binding.mark2Btn.visibility = View.VISIBLE
+                        binding.timerSelectionLabel.visibility = View.VISIBLE
+                        binding.timerSelectionLabel.text = "Riverbank Distance: "
+                        binding.riverbankSpn.visibility = View.VISIBLE
                         isCountdown = false
                         startTimer = 0L
                         sendCommandToService(SESSION_TYPE_RIVERBANK)
+                        binding.mark1Btn.setOnClickListener{
+                            sendCommandToService(ACTION_SET_LEEWARD)
+                            binding.mark2Btn.isClickable = true
+                            binding.mark2Btn.visibility = View.VISIBLE
+                            binding.leewardCheck.visibility = View.VISIBLE
+                        }
+                        binding.mark2Btn.setOnClickListener{
+                            sendCommandToService(ACTION_SET_WINDWARD)
+                            binding.windwardCheck.visibility = View.VISIBLE
+                        }
                     }
                 }
             }
@@ -204,8 +246,6 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
                 TODO("Not yet implemented")
             }
         }
-
-
         return view
     }
 
@@ -223,17 +263,32 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             updateTracking(it)
         })
 
+        var previousPoint = LatLng(0.0,0.0)
         TrackingService.points.observe(viewLifecycleOwner, Observer {
             points = it
             addLatestPolyline(map)
             moveCamera(map)
-            if(sessionType == SESSION_TYPE_RIVERBANK) {
-                //Logic for river bank goes here.
-            }
         })
+
         TrackingService.speedPoints.observe(viewLifecycleOwner, Observer {
-            speedPoints = it
-            updateSpeedo(map)
+            if(sessionType == SESSION_TYPE_RIVERBANK && isTracking) {
+                val upwindBearing = SphericalUtil.computeHeading(markerLocations[0], markerLocations[1])
+                val downwindBearing = SphericalUtil.computeHeading(markerLocations[1], markerLocations[0])
+                var currentBearing = 0.0
+                if(points.size > 2) {
+                    currentBearing = SphericalUtil.computeHeading(previousPoint, points.last()[points.size - 1])
+                }
+                val vmg = findVMG(upwindBearing, downwindBearing, currentBearing).toFloat()
+                currentVMG = vmg.toDouble()
+                vmgList.last().add(vmg)
+            }
+            if(sessionType != SESSION_TYPE_RIVERBANK) {
+                speedPoints = it
+                updateSpeedo(map)
+            } else {
+                hiddenSpeedPoints = it
+                updateSpeedo(map)
+            }
         })
 
 
@@ -377,9 +432,16 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
 
     @SuppressLint("SetTextI18n")
     private fun updateSpeedo(map: GoogleMap) {
-        if(speedPoints.isNotEmpty() &&points.last().isNotEmpty()) {
-           binding.speedReadout.text = "Speed: ${((speedPoints.last().last() * 18/5) * 10 ) / 10}"
+        if(sessionType != SESSION_TYPE_RIVERBANK) {
+            if(speedPoints.isNotEmpty() &&points.last().isNotEmpty()) {
+                binding.speedReadout.text = "Speed: ${((speedPoints.last().last() * 18/5) * 10 ) / 10}"
+            }
+        } else {
+            if(speedPoints.isNotEmpty() &&points.last().isNotEmpty()) {
+                binding.speedReadout.text = "Speed: ${((currentVMG * 18/5) * 10 ) / 10}"
+            }
         }
+
     }
 
     private fun sendCommandToService(action: String) =
@@ -421,7 +483,7 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             SESSION_TYPE_DEFAULT  -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
             SESSION_TYPE_TACK_ON_WHISTLE -> findNavController().navigate(R.id.action_trackingFragment_to_resultsTackingOnTheWhistleFragment)
             SESSION_TYPE_TIME_TO_LINE  -> findNavController().navigate(R.id.action_trackingFragment_to_resultsTackingOnTheWhistleFragment)
-            SESSION_TYPE_RIVERBANK  -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
+            SESSION_TYPE_RIVERBANK  -> findNavController().navigate(R.id.action_trackingFragment_to_resultsTackingOnTheWhistleFragment)
             SESSION_TYPE_CANCELED -> findNavController().navigate(R.id.action_trackingFragment_to_sessionFragment)
 
         }
@@ -493,7 +555,70 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             map?.addMarker(markerOptions)
         }
     }
-    
+
+    private fun setRiverbank(wwMark: LatLng, lwMark: LatLng, map: GoogleMap) {
+        val starboardHorizontalHeading = SphericalUtil.computeHeading(wwMark, lwMark) - 90
+        val portHorizontalHeading = SphericalUtil.computeHeading(wwMark, lwMark) + 90
+        val starboardWindwardMark = SphericalUtil.computeOffset(wwMark, riverbankSize.toDouble(), starboardHorizontalHeading)
+        val portWindwardMark = SphericalUtil.computeOffset(wwMark, riverbankSize.toDouble(), portHorizontalHeading)
+        val starboardLeeawrdMark = SphericalUtil.computeOffset(lwMark, riverbankSize.toDouble(), starboardHorizontalHeading)
+        val portLeewrdMark = SphericalUtil.computeOffset(lwMark, riverbankSize.toDouble(), portHorizontalHeading)
+        markerLocations.add(starboardWindwardMark)
+        markerLocations.add(portWindwardMark)
+        markerLocations.add(starboardLeeawrdMark)
+        markerLocations.add(portLeewrdMark)
+        val polylineOptions = PolylineOptions()
+        polylineOptions
+            .color(POLYLINE_ACCENT_COLOR)
+            .width(POLYLINE_WIDTH)
+            .add(starboardWindwardMark)
+            .add(starboardLeeawrdMark)
+        map.addPolyline(polylineOptions)
+        val polylineOptions2 = PolylineOptions()
+        polylineOptions2
+            .color(POLYLINE_ACCENT_COLOR)
+            .width(POLYLINE_WIDTH)
+            .add(portWindwardMark)
+            .add(portLeewrdMark)
+        map.addPolyline(polylineOptions2)
+    }
+
+//    private fun distanceToRiverBank(wwMark: LatLng, lwMark: LatLng, boat: LatLng): Float {
+//        //TODO
+//    }
+//
+    private fun findVMG(upwindBearing: Double, dwBearing: Double, currentBearing: Double): Double {
+        //upwind
+        var upwindAngle = 0.0
+        if(currentBearing > upwindBearing) {
+            upwindAngle = currentBearing - upwindBearing
+        } else {
+            upwindAngle = upwindBearing - currentBearing
+        }
+        if(upwindAngle > 180) {
+            upwindAngle = 360 - upwindAngle
+        }
+        val upwindVMG = hiddenSpeedPoints.last().last() * cos(upwindAngle)
+
+        //downwind
+        var downwindAngle = 0.0
+    downwindAngle = if(currentBearing > dwBearing) {
+        currentBearing - dwBearing
+    } else {
+        dwBearing - upwindAngle
+    }
+        if(downwindAngle > 180) {
+            downwindAngle = 360 - downwindAngle
+        }
+        val downwindVMG = hiddenSpeedPoints.last().last() * cos(downwindAngle)
+
+    return if(downwindVMG > upwindVMG) {
+        downwindVMG
+    } else {
+        upwindVMG
+    }
+    }
+
     private fun endAndSaveSession(map: GoogleMap) {
         map?.snapshot { bmp ->
             var distanceInMeters = 0
@@ -505,7 +630,13 @@ class TrackingFragment: Fragment(R.layout.fragment_tracking) {
             val weight = sharedPreferences.getFloat(KEY_WEIGHT, 80F)
             val caloriesBurned = (((MET  * weight * 3.5)/200) * (timeInSeconds/60)).toInt()
             val pointsObject = PolylinesList(points)
-            val speedList = SpeedsList(speedPoints)
+            var speedList = SpeedsList(mutableListOf(mutableListOf()))
+            if(sessionType == SESSION_TYPE_RIVERBANK) {
+                speedList = SpeedsList(vmgList)
+            } else {
+                speedList = SpeedsList(vmgList)
+            }
+
             val redPointsList = RedPointsList(redPoints)
             val markersList = MarkerList(markerLocations)
             val markerTimeStampList = MarkerTimeStampList(markerTimeStamps)

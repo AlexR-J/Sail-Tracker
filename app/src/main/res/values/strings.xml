@@ -19,4 +19,11 @@
         <item>05:00:00</item>
         <item>10:00:00</item>
     </string-array>
+    <string-array name="riverbank_options">
+        <item>20m</item>
+        <item>30m</item>
+        <item>40m</item>
+        <item>50m</item>
+        <item>100m</item>
+    </string-array>
 </resources>
